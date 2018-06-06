@@ -1,6 +1,7 @@
 package com.danielcs.webserver.socket;
 
 import com.danielcs.webserver.socket.annotations.*;
+import com.danielcs.webserver.Server;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
@@ -17,7 +18,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class SocketServer {
+public class SocketServer implements Server {
 
     private final int PORT;
     private final String CLASSPATH;
@@ -26,6 +27,13 @@ public class SocketServer {
     // TODO: MAY work better with a MAP, too many lookups
     private final Set<UserSession> users = Collections.synchronizedSet(new HashSet<>());
     private final Map<Class, Map<String, Controller>> controllers = new HashMap<>();
+
+    public SocketServer(int port, String classpath) {
+        this.PORT = port;
+        this.CLASSPATH = classpath;
+        connectionPool = Executors.newFixedThreadPool(20);
+        setupControllers();
+    }
 
     public SocketServer(int port, String classPath, int poolSize) {
         this.PORT = port;
