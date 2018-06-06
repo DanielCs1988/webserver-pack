@@ -6,7 +6,8 @@ import java.io.*;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
-import static com.danielcs.webserver.socket.SocketTransactionUtils.*;
+
+import static com.danielcs.webserver.socket.SocketTransactionUtils.decodeSocketStream;
 
 class MessageBroker implements Runnable {
 
@@ -65,7 +66,7 @@ class MessageBroker implements Runnable {
                 OutputStream out = socket.getOutputStream()
         ) {
 
-            boolean isConnectionValid = handleHandshake(inputStream, out);
+            boolean isConnectionValid = SocketTransactionUtils.handleHandshake(inputStream, out);
             if (!isConnectionValid) {
                 System.out.println("Invalid handshake attempt was received. Thread broken.");
                 return;
@@ -75,6 +76,8 @@ class MessageBroker implements Runnable {
             byte[] stream = new byte[BUFFER_SIZE];
             int inputLength;
             String msg;
+            boolean validationNeeded = SocketTransactionUtils.authGuardPresent();
+            System.out.println(validationNeeded);
 
             while (context.connected()) {
                 inputLength = inputStream.read(stream);
@@ -83,8 +86,16 @@ class MessageBroker implements Runnable {
                     if (msg == null || msg.equals("EOF")) {
                         break;
                     }
-                    processMessage(msg);
-                    // TODO: is there an alternative to resetting buffer?
+                    if (validationNeeded) {
+                        boolean authenticationIsValid = SocketTransactionUtils.intercept(msg);
+                        if (!authenticationIsValid) {
+                            break;
+                        }
+                        validationNeeded = false;
+                    } else {
+                        System.out.println("Processing " + msg);
+                        processMessage(msg);
+                    }
                     stream = new byte[BUFFER_SIZE];
                 }
             }

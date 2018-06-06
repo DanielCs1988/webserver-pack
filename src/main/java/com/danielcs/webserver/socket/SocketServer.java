@@ -1,8 +1,8 @@
 package com.danielcs.webserver.socket;
 
 import com.danielcs.webserver.socket.annotations.*;
-import com.danielcs.webserver.Server;
 import org.reflections.Reflections;
+import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
 import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.util.ClasspathHelper;
@@ -10,13 +10,14 @@ import org.reflections.util.ConfigurationBuilder;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class SocketServer implements Server {
+public class SocketServer {
 
     private final int PORT;
     private final String CLASSPATH;
@@ -36,8 +37,16 @@ public class SocketServer implements Server {
     private Set<Class<?>> scanClassPath() {
         Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .setUrls(ClasspathHelper.forPackage(CLASSPATH))
-                .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner())
+                .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner(), new MethodAnnotationsScanner())
         );
+        Set<Method> authGuards = reflections.getMethodsAnnotatedWith(AuthGuard.class);
+        // TODO: handle multiple interceptors
+        if (authGuards.size() > 0) {
+            Method guard = authGuards.toArray(new Method[0])[0];
+            if (Modifier.isStatic(guard.getModifiers()) && guard.getReturnType().equals(boolean.class)) {
+                SocketTransactionUtils.setAuthGuard(guard);
+            }
+        }
         return reflections.getTypesAnnotatedWith(SocketController.class);
     }
 
