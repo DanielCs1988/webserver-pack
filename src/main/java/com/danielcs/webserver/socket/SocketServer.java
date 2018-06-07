@@ -1,7 +1,7 @@
 package com.danielcs.webserver.socket;
 
-import com.danielcs.webserver.socket.annotations.*;
 import com.danielcs.webserver.Server;
+import com.danielcs.webserver.socket.annotations.*;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
@@ -85,7 +85,7 @@ public class SocketServer implements Server {
 
                 connectionPool.execute(handler);
                 connectionPool.execute(broker);
-                System.out.println("Client connected: " + user);
+                System.out.println("Client connected.");
             }
 
         } catch (IOException e) {
