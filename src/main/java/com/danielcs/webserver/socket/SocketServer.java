@@ -1,7 +1,7 @@
 package com.danielcs.webserver.socket;
 
-import com.danielcs.webserver.Server;
 import com.danielcs.webserver.socket.annotations.*;
+import com.danielcs.webserver.Server;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
@@ -73,13 +73,14 @@ public class SocketServer implements Server {
 
     public void start() {
         try (ServerSocket server = new ServerSocket(PORT)) {
+            System.out.println("WebSocket server started on port " + PORT + ". Listening for connections...");
 
             while (true) {
                 Socket client = server.accept();
 
                 UserSession user = new UserSession();
                 users.add(user);
-                SocketContext ctx = new BasicContext(user, users);
+                BasicContext ctx = new BasicContext(user, users);
                 MessageSender handler = new MessageSender(client, user);
                 MessageBroker broker = new MessageBroker(client, ctx, controllers);
 
