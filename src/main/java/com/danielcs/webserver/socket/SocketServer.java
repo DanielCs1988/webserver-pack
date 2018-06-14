@@ -1,7 +1,7 @@
 package com.danielcs.webserver.socket;
 
-import com.danielcs.webserver.socket.annotations.*;
 import com.danielcs.webserver.Server;
+import com.danielcs.webserver.socket.annotations.*;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
@@ -62,10 +62,12 @@ public class SocketServer implements Server {
         Set<Class<?>> handlerClasses = scanClassPath();
         for (Class handlerClass : handlerClasses) {
             controllers.put(handlerClass, new HashMap<>());
+            Map<String, Controller> currentHandler = controllers.get(handlerClass);
+
             for (Method method : handlerClass.getMethods()) {
-                if (method.isAnnotationPresent(SocketHandler.class)) {
-                    SocketHandler config = method.getAnnotation(SocketHandler.class);
-                    controllers.get(handlerClass).put(config.route(), new Controller(method, config.type()));
+                if (method.isAnnotationPresent(OnMessage.class)) {
+                    OnMessage config = method.getAnnotation(OnMessage.class);
+                    currentHandler.put(config.route(), new Controller(method, config.type()));
                 }
             }
         }
