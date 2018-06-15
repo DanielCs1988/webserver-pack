@@ -1,7 +1,7 @@
 package com.danielcs.webserver.socket;
 
-import com.danielcs.webserver.Server;
 import com.danielcs.webserver.socket.annotations.*;
+import com.danielcs.webserver.Server;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
