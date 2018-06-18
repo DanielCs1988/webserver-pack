@@ -3,13 +3,12 @@ package com.danielcs.webserver.socket;
 import com.danielcs.webserver.socket.annotations.*;
 import com.danielcs.webserver.Server;
 import org.reflections.Reflections;
-import org.reflections.scanners.MethodAnnotationsScanner;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.scanners.TypeAnnotationsScanner;
+import org.reflections.scanners.*;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.ServerSocket;
@@ -23,16 +22,16 @@ public class SocketServer implements Server {
     private final int PORT;
     private final String CLASSPATH;
 
+    private Set<Class<?>> configClasses;
+    private final Map<Class, Object> dependencies = new HashMap<>();
+
     private final ExecutorService connectionPool;
     // TODO: MAY work better with a MAP, too many lookups
     private final Set<UserSession> users = Collections.synchronizedSet(new HashSet<>());
     private final Map<Class, Map<String, Controller>> controllers = new HashMap<>();
 
     public SocketServer(int port, String classpath) {
-        this.PORT = port;
-        this.CLASSPATH = classpath;
-        connectionPool = Executors.newFixedThreadPool(20);
-        setupControllers();
+        this(port, classpath, 20);
     }
 
     public SocketServer(int port, String classPath, int poolSize) {
@@ -40,6 +39,36 @@ public class SocketServer implements Server {
         this.CLASSPATH = classPath;
         connectionPool = Executors.newFixedThreadPool(poolSize * 2);
         setupControllers();
+        initDependencies();
+    }
+
+    private void initDependencies() {
+        for (Class<?> configClass : configClasses) {
+            try {
+                Object configObject = configClass.newInstance();
+                for (Method method : configClass.getMethods()) {
+                    if (method.isAnnotationPresent(Dependency.class)) {
+                        dependencies.put(method.getReturnType(), method.invoke(configObject));
+                    }
+                }
+                resolveDependencies();
+            } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                System.out.println("Could not initialize dependencies.");
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void resolveDependencies() throws InvocationTargetException, IllegalAccessException {
+        for (Class dependency : dependencies.keySet()) {
+            Object depObject = dependencies.get(dependency);
+            for (Method method : depObject.getClass().getMethods()) {
+                if (method.isAnnotationPresent(InjectionPoint.class)) {
+                    Class classNeeded = method.getParameterTypes()[0];
+                    method.invoke(depObject, dependencies.get(classNeeded));
+                }
+            }
+        }
     }
 
     private Set<Class<?>> scanClassPath() {
@@ -51,11 +80,19 @@ public class SocketServer implements Server {
         // TODO: handle multiple interceptors
         if (authGuards.size() > 0) {
             Method guard = authGuards.toArray(new Method[0])[0];
-            if (Modifier.isStatic(guard.getModifiers()) && guard.getReturnType().equals(boolean.class)) {
+            if (checkAuthGuardMethodSignature(guard)) {
                 SocketTransactionUtils.setAuthGuard(guard);
             }
         }
+        configClasses = reflections.getTypesAnnotatedWith(Configuration.class);
         return reflections.getTypesAnnotatedWith(SocketController.class);
+    }
+
+    private boolean checkAuthGuardMethodSignature(Method guard) {
+        return Modifier.isStatic(guard.getModifiers()) &&
+                guard.getReturnType().equals(boolean.class) &&
+                guard.getParameterCount() == 1 &&
+                guard.getParameterTypes()[0].equals(String.class);
     }
 
     private void setupControllers() {
@@ -84,7 +121,7 @@ public class SocketServer implements Server {
                 users.add(user);
                 BasicContext ctx = new BasicContext(user, users);
                 MessageSender handler = new MessageSender(client, user);
-                MessageBroker broker = new MessageBroker(client, ctx, controllers);
+                MessageBroker broker = new MessageBroker(client, ctx, controllers, dependencies);
 
                 connectionPool.execute(handler);
                 connectionPool.execute(broker);
