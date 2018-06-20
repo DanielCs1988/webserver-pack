@@ -27,7 +27,7 @@ class MessageBroker implements Runnable {
         @SuppressWarnings("SuspiciousMethodCalls")
         @Override
         public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-            return fieldAttributes.getAnnotations().contains(ExcludeGson.class);
+            return fieldAttributes.getAnnotation(ExcludeGson.class) != null;
         }
 
         @Override
