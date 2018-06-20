@@ -85,6 +85,7 @@ public class SocketServer implements Server {
             }
         }
         configClasses = reflections.getTypesAnnotatedWith(Configuration.class);
+
         return reflections.getTypesAnnotatedWith(SocketController.class);
     }
 

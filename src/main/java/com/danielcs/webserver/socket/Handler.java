@@ -5,6 +5,7 @@ import com.google.gson.JsonSyntaxException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
 final class Handler extends Caller {
 
@@ -22,7 +23,8 @@ final class Handler extends Caller {
             Object payload = type == String.class ? rawInput : converter.fromJson(rawInput, type);
             method.invoke(obj, context, payload);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            System.out.println("Handler call failed: " + method.getName());
+            System.out.println("Handler call failed: " + method.getName() + "\nError: " + Arrays.toString(e.getStackTrace()));
+            e.printStackTrace();
         } catch (JsonSyntaxException ee) {
             System.out.println("JSON format was invalid.");
         }
