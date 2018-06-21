@@ -1,11 +1,6 @@
 package com.danielcs.webserver.socket;
 
-import com.danielcs.webserver.socket.annotations.ExcludeGson;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -23,18 +18,7 @@ class MessageBroker implements Runnable {
     private final Socket socket;
     private final BasicContext context;
     private final Map<String, Handler> handlers = new HashMap<>();
-    private final Gson converter = new GsonBuilder().addSerializationExclusionStrategy(new ExclusionStrategy() {
-        @SuppressWarnings("SuspiciousMethodCalls")
-        @Override
-        public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-            return fieldAttributes.getAnnotation(ExcludeGson.class) != null;
-        }
-
-        @Override
-        public boolean shouldSkipClass(Class<?> aClass) {
-            return false;
-        }
-    }).create();
+    private final Gson converter = new Gson();
     private final MessageFormatter msgFormatter = new BasicMessageFormatter();  // TODO: make it a plugin
     private final Map<Class, Object> dependencies;
     private Caller connectHandler;

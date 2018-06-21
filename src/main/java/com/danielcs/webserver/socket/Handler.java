@@ -24,7 +24,6 @@ final class Handler extends Caller {
             method.invoke(obj, context, payload);
         } catch (IllegalAccessException | InvocationTargetException e) {
             System.out.println("Handler call failed: " + method.getName() + "\nError: " + Arrays.toString(e.getStackTrace()));
-            e.printStackTrace();
         } catch (JsonSyntaxException ee) {
             System.out.println("JSON format was invalid.");
         }
