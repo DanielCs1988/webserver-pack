@@ -10,7 +10,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,20 +17,12 @@ class SocketTransactionUtils {
 
     private static List<AuthGuard> authGuards = new ArrayList<>();
 
-    static void setAuthGuard(Set<Class<? extends AuthGuard>> authGuards) {
-        for (Class<? extends AuthGuard> authGuard : authGuards) {
-            try {
-                AuthGuard guard = authGuard.newInstance();
-                SocketTransactionUtils.authGuards.add(guard);
-            } catch (InstantiationException | IllegalAccessException e) {
-                System.out.println("Could not instantiate authguards!");
-                e.printStackTrace();
-            }
-        }
-    }
-
     static boolean authGuardPresent() {
         return !authGuards.isEmpty();
+    }
+
+    static void registerAuthGuard(AuthGuard authGuard) {
+        authGuards.add(authGuard);
     }
 
     static String decodeSocketStream(byte[] stream, int len) throws UnsupportedEncodingException {
