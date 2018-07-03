@@ -5,24 +5,33 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 class SocketTransactionUtils {
 
-    private static Method authGuard;
+    private static List<AuthGuard> authGuards = new ArrayList<>();
 
-    static void setAuthGuard(Method authGuard) {
-        SocketTransactionUtils.authGuard = authGuard;
+    static void setAuthGuard(Set<Class<? extends AuthGuard>> authGuards) {
+        for (Class<? extends AuthGuard> authGuard : authGuards) {
+            try {
+                AuthGuard guard = authGuard.newInstance();
+                SocketTransactionUtils.authGuards.add(guard);
+            } catch (InstantiationException | IllegalAccessException e) {
+                System.out.println("Could not instantiate authguards!");
+                e.printStackTrace();
+            }
+        }
     }
 
     static boolean authGuardPresent() {
-        return authGuard != null;
+        return !authGuards.isEmpty();
     }
 
     static String decodeSocketStream(byte[] stream, int len) throws UnsupportedEncodingException {
@@ -101,10 +110,10 @@ class SocketTransactionUtils {
         return reply;
     }
 
-    static boolean handleHandshake(InputStream in, OutputStream out) throws IOException {
+    static boolean handleHandshake(InputStream in, OutputStream out, SocketContext ctx) throws IOException {
         String msg = new Scanner(in,"UTF-8").useDelimiter("\\r\\n\\r\\n").next();
         boolean isGetRequest = msg.startsWith("GET");
-        if (!(isGetRequest && validateAuthToken(msg))) {
+        if (!(isGetRequest && validateAuthToken(msg, ctx))) {
             byte[] reason = isGetRequest ? "HTTP/1.1 401".getBytes() : "HTTP/1.1 400".getBytes();
             out.write(reason, 0, reason.length);
             return false;
@@ -134,7 +143,7 @@ class SocketTransactionUtils {
         return true;
     }
 
-    private static boolean validateAuthToken(String msg) {
+    private static boolean validateAuthToken(String msg, SocketContext ctx) {
         if (!authGuardPresent()) {
             return true;
         }
@@ -144,19 +153,19 @@ class SocketTransactionUtils {
             return false;
         }
         String token = authTokenMatcher.group(1);
-        if (!intercept(token)) {
+        if (!intercept(token, ctx)) {
             System.out.println("Authorization token is invalid!");
             return false;
         }
         return true;
     }
 
-    static boolean intercept(String token) {
-        try {
-            return (Boolean) authGuard.invoke(null, token);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            System.out.println("Authguard method could not be called!");
-            return false;
+    static boolean intercept(String token, SocketContext ctx) {
+        for (AuthGuard authGuard : authGuards) {
+            if (!authGuard.authorize(ctx, token)) {
+                return false;
+            }
         }
+        return true;
     }
 }

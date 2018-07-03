@@ -1,6 +1,7 @@
 package com.danielcs.webserver.socket;
 
 import com.google.gson.Gson;
+
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -116,7 +117,7 @@ class MessageBroker implements Runnable {
                 OutputStream out = socket.getOutputStream()
         ) {
 
-            boolean isConnectionValid = SocketTransactionUtils.handleHandshake(inputStream, out);
+            boolean isConnectionValid = SocketTransactionUtils.handleHandshake(inputStream, out, context);
             if (!isConnectionValid) {
                 System.out.println("Invalid handshake attempt was received. Thread broken.");
                 return;
