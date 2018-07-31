@@ -4,9 +4,8 @@ import java.lang.annotation.*;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface OnMessage {
+public @interface Weave {
 
-    String route();
-    Class type() default String.class;
+    String aspect();
 
 }

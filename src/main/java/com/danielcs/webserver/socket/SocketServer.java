@@ -1,7 +1,9 @@
 package com.danielcs.webserver.socket;
 
-import com.danielcs.webserver.socket.annotations.*;
 import com.danielcs.webserver.Server;
+import com.danielcs.webserver.socket.annotations.*;
+import com.danielcs.webserver.socket.request.RequestHandlerFactory;
+import com.google.gson.Gson;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
@@ -10,7 +12,6 @@ import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
@@ -18,8 +19,12 @@ import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class SocketServer implements Server {
+
+    private static final String ON_CONNECT = "connect";
+    private static final String ON_DISCONNECT = "disconnect";
 
     private final int PORT;
     private final String CLASSPATH;
@@ -27,7 +32,14 @@ public class SocketServer implements Server {
     private final ExecutorService connectionPool;
     // TODO: MAY work better with a MAP, too many lookups
     private final Set<UserSession> users = Collections.synchronizedSet(new HashSet<>());
-    private final Map<Class, Map<String, Controller>> controllers = new HashMap<>();
+
+    private final Map<String, Controller> controllers = new HashMap<>();
+    private final Gson converter = new Gson();
+    private final MessageFormatter formatter = new BasicMessageFormatter(); // TODO: Can make this customizable!
+
+    private HandlerInvoker connectHandler;
+    private HandlerInvoker disconnectHandler;
+    private Injector injector;
 
     public SocketServer(int port, String classpath) {
         this(port, classpath, 20);
@@ -50,9 +62,25 @@ public class SocketServer implements Server {
         Set<Class<?>> configClasses = reflections.getTypesAnnotatedWith(Configuration.class);
         Set<Class<? extends AuthGuard>> authGuards = reflections.getSubTypesOf(AuthGuard.class);
 
-        initDependencies(configClasses);
-        setupControllers(handlerClasses);
+        Set<Class<?>> assemblers = reflections.getTypesAnnotatedWith(HttpRequestAssembler.class);
+        Object proxy = RequestHandlerFactory.createProxy(assemblers, converter);
+
+        Set<Method> aspects = reflections.getMethodsAnnotatedWith(Aspect.class);
+        Set<Class> fabric = reflections.getMethodsAnnotatedWith(Weave.class).stream()
+                .map(Method::getDeclaringClass)
+                .collect(Collectors.toSet());
+
+        initRequestHandlers(assemblers, proxy);
+        initDependencies(configClasses);  // Injector instance is set up at the end of this method call
+        Weaver weaver = WeaverFactory.createWeaver(fabric, aspects, injector);
+        setupControllers(handlerClasses, fabric, weaver);
         setAuthGuards(authGuards);
+    }
+
+    private void initRequestHandlers(Set<Class<?>> assemblers, Object proxy) {
+        for (Class<?> assembler : assemblers) {
+            dependencies.put(assembler, proxy);
+        }
     }
 
     private void initDependencies(Set<Class<?>> configClasses) {
@@ -82,41 +110,50 @@ public class SocketServer implements Server {
                 }
             }
         }
+        injector = new Injector(dependencies);
     }
 
-    Object injectDependencies(Class processedClass) throws IllegalAccessException, InvocationTargetException, InstantiationException {
-        Constructor constructor = processedClass.getConstructors()[0];
-        Class[] paramClasses =  constructor.getParameterTypes();
-        Object[] params = new Object[paramClasses.length];
-        for (int i = 0; i < paramClasses.length; i++) {
-            params[i] = dependencies.getOrDefault(paramClasses[i], null);
-        }
-        return params.length > 0 ? constructor.newInstance(params) : constructor.newInstance();
-    }
-
-    private void setupControllers(Set<Class<?>> handlerClasses) {
+    private void setupControllers(Set<Class<?>> handlerClasses, Set<Class> fabric, Weaver weaver) {
         for (Class handlerClass : handlerClasses) {
-            controllers.put(handlerClass, new HashMap<>());
-            Map<String, Controller> currentHandler = controllers.get(handlerClass);
-
+            boolean shouldWeave = fabric.contains(handlerClass);
+            Object instance = shouldWeave ? weaver : injector.injectDependencies(handlerClass);
             for (Method method : handlerClass.getMethods()) {
                 if (method.isAnnotationPresent(OnMessage.class)) {
-                    OnMessage config = method.getAnnotation(OnMessage.class);
-                    currentHandler.put(config.route(), new Controller(method, config.type()));
+                    createController(instance, method, shouldWeave);
                 }
             }
         }
     }
 
+    private void createController(Object instance, Method method, boolean shouldWeave) {
+        OnMessage config = method.getAnnotation(OnMessage.class);
+        final String route = config.route();
+        final Class type = config.type();
+
+        switch (route) {
+            case ON_CONNECT:
+                connectHandler = shouldWeave ?
+                        new HandlerInvoker(instance, method, true) :
+                        new HandlerInvoker(instance, method);
+                break;
+            case ON_DISCONNECT:
+                disconnectHandler = shouldWeave ?
+                        new HandlerInvoker(instance, method, true) :
+                        new HandlerInvoker(instance, method);
+                break;
+            default:
+                if (shouldWeave) {
+                    controllers.put(route, new Controller(instance, method, type, converter, true));
+                } else {
+                    controllers.put(route, new Controller(instance, method, type, converter));
+                }
+        }
+    }
+
     private void setAuthGuards(Set<Class<? extends AuthGuard>> authGuards) {
         for (Class<? extends AuthGuard> authGuard : authGuards) {
-            try {
-                AuthGuard guard = (AuthGuard) injectDependencies(authGuard);
-                SocketTransactionUtils.registerAuthGuard(guard);
-            } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                System.out.println("Could not instantiate authguards!");
-                e.printStackTrace();
-            }
+            AuthGuard guard = (AuthGuard) injector.injectDependencies(authGuard);
+            SocketTransactionUtils.registerAuthGuard(guard);
         }
     }
 
@@ -131,7 +168,9 @@ public class SocketServer implements Server {
                 users.add(user);
                 BasicContext ctx = new BasicContext(user, users);
                 MessageSender handler = new MessageSender(client, user);
-                MessageBroker broker = new MessageBroker(client, ctx, controllers, this);
+                MessageBroker broker = new MessageBroker(
+                        client, ctx, controllers, connectHandler, disconnectHandler, formatter
+                );
 
                 connectionPool.execute(handler);
                 connectionPool.execute(broker);
