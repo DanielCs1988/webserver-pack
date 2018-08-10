@@ -4,11 +4,11 @@ class BasicMessageFormatter extends MessageFormatter {
 
     private static final String SEPARATOR = "&";
 
-    public BasicMessageFormatter(String route, String payload) {
+    BasicMessageFormatter(String route, String payload) {
         super(route, payload);
     }
 
-    public BasicMessageFormatter() {
+    BasicMessageFormatter() {
     }
 
     @Override

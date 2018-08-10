@@ -12,7 +12,7 @@ class MessageSender implements Runnable {
     private final Socket socket;
     private UserSession user;
 
-    public MessageSender(Socket socket, UserSession user) {
+    MessageSender(Socket socket, UserSession user) {
         this.socket = socket;
         this.user = user;
     }

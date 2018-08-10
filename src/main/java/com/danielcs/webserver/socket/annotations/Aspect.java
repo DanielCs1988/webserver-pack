@@ -4,9 +4,8 @@ import java.lang.annotation.*;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface OnMessage {
+public @interface Aspect {
 
-    String route();
-    Class type() default String.class;
+    AspectType type();
 
 }
