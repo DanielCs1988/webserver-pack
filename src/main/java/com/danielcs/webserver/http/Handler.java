@@ -1,5 +1,6 @@
 package com.danielcs.webserver.http;
 
+import com.danielcs.webserver.http.annotations.*;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.lang.reflect.InvocationTargetException;
@@ -11,7 +12,7 @@ class Handler {
     private final Object caller;
     private final Method method;
     private final HttpExchangeProcessor processor;
-    private final WebRoute.ParamType paramType;
+    private final ParamType paramType;
     private final Class JsonType;
 
     Handler(Object caller, Method method, HttpExchangeProcessor processor) {
@@ -19,14 +20,14 @@ class Handler {
         this.method = method;
         this.processor = processor;
         this.paramType = method.getAnnotation(WebRoute.class).paramType();
-        this.JsonType = paramType == WebRoute.ParamType.JSON ?
+        this.JsonType = paramType == ParamType.JSON ?
                 method.getAnnotation(WebRoute.class).model() : null;
     }
 
     @SuppressWarnings("unchecked")
     void handleRequest(HttpExchange http, List<Object> args) {
         try {
-            int numberOfArgs = (paramType == WebRoute.ParamType.NONE) ? 1 : 2;
+            int numberOfArgs = (paramType == ParamType.NONE) ? 1 : 2;
             Object[] params = new Object[args.size() + numberOfArgs];
 
             switch (paramType) {

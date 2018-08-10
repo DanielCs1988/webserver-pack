@@ -4,21 +4,24 @@ import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
 import java.util.*;
+
+import static com.danielcs.webserver.http.Utils.*;
 
 class BasicRequest implements Request {
 
     private final HttpExchange http;
     private final Gson converter;
-    private Map<String, String> queryParamCache;
-    private Map<String, String> paramCache;
+    private final Map<String, String> queryParams;
+    private Map<String, String> bodyParams;
+    private Map<String, String> cookies;
 
     BasicRequest(HttpExchange http, Gson converter) {
         this.http = http;
         this.converter = converter;
+        String url = http.getRequestURI().getRawQuery();
+        queryParams = parseUrl(url);
     }
 
     @Override
@@ -36,15 +39,15 @@ class BasicRequest implements Request {
 
     @Override
     public String getParam(String key) {
-        return paramCache == null ? null : getParams().get(key);
+        return getParams().get(key);
     }
 
     @Override
     public Map<String, String> getParams() {
-        if (paramCache == null) {
-            paramCache = parseUrl(getBody());
+        if (bodyParams == null) {
+            bodyParams = parseUrl(getBody());
         }
-        return paramCache;
+        return bodyParams;
     }
 
     @Override
@@ -55,6 +58,20 @@ class BasicRequest implements Request {
     @Override
     public Map<String, List<String>> getHeaders() {
         return http.getRequestHeaders();
+    }
+
+    @Override
+    public String getCookie(String name) {
+        return getCookies().get(name);
+    }
+
+    @Override
+    public Map<String, String> getCookies() {
+        if (cookies == null) {
+            String cookieHeader = getHeader("Cookie");
+            cookies = gatherCookies(cookieHeader);
+        }
+        return cookies;
     }
 
     @Override
@@ -74,35 +91,11 @@ class BasicRequest implements Request {
 
     @Override
     public String getQueryParam(String key) {
-        return queryParamCache == null ? null : getQueryParams().get(key);
+        return queryParams.get(key);
     }
 
     @Override
     public Map<String, String> getQueryParams() {
-        if (queryParamCache == null) {
-            String url = http.getRequestURI().getRawQuery();
-            queryParamCache = parseUrl(url);
-        }
-        return queryParamCache;
-    }
-
-    private Map<String, String> parseUrl(String query) {
-        if (query == null) return null;
-        Map<String, String> queryParams = new LinkedHashMap<>();
-        for (String kvPair : query.split("&")) {
-            int idx = kvPair.indexOf("=");
-            if (idx == -1) {
-                continue;
-            }
-            try {
-                queryParams.put(
-                        URLDecoder.decode(kvPair.substring(0, idx), "UTF-8"),
-                        URLDecoder.decode(kvPair.substring(idx + 1), "UTF-8")
-                );
-            } catch (UnsupportedEncodingException e) {
-                System.out.println("Could not decode URL!");
-            }
-        }
-        return queryParams;
+        return Collections.unmodifiableMap(queryParams);
     }
 }

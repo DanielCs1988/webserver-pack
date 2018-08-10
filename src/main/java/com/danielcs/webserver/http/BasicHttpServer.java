@@ -1,6 +1,7 @@
 package com.danielcs.webserver.http;
 
 import com.danielcs.webserver.Server;
+import com.danielcs.webserver.http.annotations.WebRoute;
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -23,18 +24,18 @@ import java.util.concurrent.Executors;
  * It is also possible to pass the number of maximum connections the server can handle in the contructor,
  * the default value is 100.
  */
-public class BasicServer implements Server {
+public class BasicHttpServer implements Server {
 
     private final int PORT;
     private final String CONTROLLERS_PATH;
     private int maxThreads = 100;
 
-    public BasicServer(int port, String controllersPath) {
+    public BasicHttpServer(int port, String controllersPath) {
         this.PORT = port;
         this.CONTROLLERS_PATH = controllersPath;
     }
 
-    public BasicServer(int port, String controllersPath, int maxThreads) {
+    public BasicHttpServer(int port, String controllersPath, int maxThreads) {
         this(port, controllersPath);
         this.maxThreads = maxThreads;
     }
@@ -47,7 +48,7 @@ public class BasicServer implements Server {
         return reflections.getMethodsAnnotatedWith(WebRoute.class);
     }
 
-    private void setupContext(HttpServer server) {
+    private void setupContext(com.sun.net.httpserver.HttpServer server) {
         Set<Method> controllers = scanClassPath();
         Map<String, Map<String, Handler>> pathMappings = new HashMap<>();
         Map<Class, Object> callers = new HashMap<>();

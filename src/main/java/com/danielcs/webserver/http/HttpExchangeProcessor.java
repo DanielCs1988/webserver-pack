@@ -7,7 +7,7 @@ class HttpExchangeProcessor {
 
     private final Gson converter;
 
-    public HttpExchangeProcessor(Gson converter) {
+    HttpExchangeProcessor(Gson converter) {
         this.converter = converter;
     }
 

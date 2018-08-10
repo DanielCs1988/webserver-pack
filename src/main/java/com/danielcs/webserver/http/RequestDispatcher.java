@@ -11,7 +11,7 @@ import java.util.*;
 class RequestDispatcher implements HttpHandler {
 
     private final Map<String, Handler> handlers;
-    private final Gson converter = new Gson();
+    private final Gson converter = new Gson(); // TODO: DI
     private final HttpExchangeProcessor processor = new HttpExchangeProcessor(converter);
     private final String path;
 
