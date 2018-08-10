@@ -17,20 +17,10 @@ final class Controller extends HandlerInvoker {
         this.converter = converter;
     }
 
-    Controller(Object obj, Method method, Class type, Gson converter, boolean isWoven) {
-        super(obj, method, isWoven);
-        this.type = type;
-        this.converter = converter;
-    }
-
     void handle(SocketContext context, String rawInput) {
         try {
             Object payload = type == String.class ? rawInput : converter.fromJson(rawInput, type);
-            if (isWoven) {
-                ((Weaver) obj).invoke(method, context, payload);
-            } else {
-                method.invoke(obj, context, payload);
-            }
+            method.invoke(obj, context, payload);
         } catch (IllegalAccessException | InvocationTargetException e) {
             System.out.println("Controller call failed: " + method.getName());
         } catch (JsonSyntaxException ee) {

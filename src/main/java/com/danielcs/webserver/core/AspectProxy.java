@@ -1,27 +1,28 @@
-package com.danielcs.webserver.socket;
+package com.danielcs.webserver.core;
 
-import com.danielcs.webserver.socket.annotations.Weave;
+import com.danielcs.webserver.core.annotations.Weave;
+import net.sf.cglib.proxy.InvocationHandler;
 
 import java.lang.reflect.Method;
 import java.util.Map;
 
-final class Weaver {
+final class AspectProxy implements InvocationHandler {
 
     private final Map<String, AspectInvoker> aspects;
-    private final Map<Method, MethodInvoker> controllers;
+    private final Object wovenObject;
 
-    Weaver(Map<String, AspectInvoker> aspects, Map<Method, MethodInvoker> controllers) {
+    AspectProxy(Map<String, AspectInvoker> aspects, Object wovenObject) {
         this.aspects = aspects;
-        this.controllers = controllers;
+        this.wovenObject = wovenObject;
     }
 
-    Object invoke(Method method, Object... args) {
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         if (!method.isAnnotationPresent(Weave.class)) {
-            return controllers.get(method).invoke(args);
+            return method.invoke(wovenObject, args);
         }
         String aspectName = method.getAnnotation(Weave.class).aspect();
         AspectInvoker aspect = aspects.get(aspectName);
-        MethodInvoker original = controllers.get(method);
         Object[] methodNameAndArgs = new Object[args.length + 1];
         methodNameAndArgs[0] = method.getName();
         System.arraycopy(args, 0, methodNameAndArgs, 1, args.length);
@@ -29,19 +30,19 @@ final class Weaver {
         switch (aspect.getType()) {
             case BEFORE:
                 aspect.invoke(methodNameAndArgs);
-                return original.invoke(args);
+                return method.invoke(wovenObject, args);
             case AFTER:
-                Object retVal = original.invoke(args);
+                Object retVal = method.invoke(wovenObject, args);
                 aspect.invoke(retVal);
                 return retVal;
             case INTERCEPTOR:
                 boolean canCall = (boolean)aspect.invoke(methodNameAndArgs);
-                return canCall ? original.invoke(args) : null;
+                return canCall ? method.invoke(wovenObject, args) : null;
             case PREPROCESSOR:
                 Object[] processed = (Object[]) aspect.invoke(methodNameAndArgs);
-                return original.invoke(processed);
+                return method.invoke(wovenObject, processed);
             case POSTPROCESSOR:
-                Object originalValue = original.invoke(args);
+                Object originalValue = method.invoke(wovenObject, args);
                 return aspect.invoke(originalValue);
         }
         return null;

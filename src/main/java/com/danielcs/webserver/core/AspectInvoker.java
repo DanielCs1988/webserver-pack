@@ -1,7 +1,7 @@
-package com.danielcs.webserver.socket;
+package com.danielcs.webserver.core;
 
-import com.danielcs.webserver.socket.annotations.Aspect;
-import com.danielcs.webserver.socket.annotations.AspectType;
+import com.danielcs.webserver.core.annotations.Aspect;
+import com.danielcs.webserver.core.annotations.AspectType;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

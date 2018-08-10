@@ -1,9 +1,9 @@
-package com.danielcs.webserver.socket;
+package com.danielcs.webserver.core;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-class MethodInvoker {
+public class MethodInvoker {
 
     protected final Object obj;
     protected final Method method;

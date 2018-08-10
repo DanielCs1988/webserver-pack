@@ -1,4 +1,4 @@
-package com.danielcs.webserver.socket.annotations;
+package com.danielcs.webserver.core.annotations;
 
 /**
  * BEFORE: Runs aspect before the woven method and receives it's arguments.

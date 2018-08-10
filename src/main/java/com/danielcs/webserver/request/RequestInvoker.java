@@ -1,4 +1,4 @@
-package com.danielcs.webserver.socket.request;
+package com.danielcs.webserver.request;
 
 import com.google.gson.Gson;
 
