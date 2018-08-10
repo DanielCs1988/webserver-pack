@@ -6,9 +6,7 @@ import com.google.gson.Gson;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 final class DependencyResolver {
 
@@ -33,10 +31,8 @@ final class DependencyResolver {
                     }
                 }
                 initRequestHandlers(assemblers);
-
                 Map<Class, Object> proxies = new Weaver(dependencies)
                         .createProxies(fabric, aspects);
-
                 resolveDependencies(proxies);
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 System.out.println("Could not initialize dependencies.");

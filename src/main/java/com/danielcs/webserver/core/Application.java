@@ -2,7 +2,6 @@ package com.danielcs.webserver.core;
 
 import com.danielcs.webserver.Server;
 import com.danielcs.webserver.core.annotations.*;
-import com.danielcs.webserver.socket.annotations.SocketController;
 import com.google.gson.Gson;
 import org.reflections.Reflections;
 import org.reflections.scanners.*;
@@ -40,16 +39,27 @@ public class Application {
         );
 
         Set<Class<?>> configClasses = classPathScanner.getTypesAnnotatedWith(Configuration.class);
+        Set<Class<?>> dependencyClasses = getDependenciesFromConfig(configClasses);
         Set<Class<?>> assemblers = classPathScanner.getTypesAnnotatedWith(HttpRequestAssembler.class);
         Set<Method> aspects = classPathScanner.getMethodsAnnotatedWith(Aspect.class);
         Set<Class> fabric = classPathScanner.getMethodsAnnotatedWith(Weave.class).stream()
                 .map(Method::getDeclaringClass)
-                .filter(klass -> !klass.isAnnotationPresent(SocketController.class))  // Temporary solution
+                .filter(dependencyClasses::contains)
                 .collect(Collectors.toSet());
 
         DependencyResolver resolver = new DependencyResolver(fabric, aspects, converter);
         dependencies = resolver.initDependencies(configClasses, assemblers);
         injector = new Injector(dependencies, new Weaver(dependencies));
+    }
+
+    private Set<Class<?>> getDependenciesFromConfig(Set<Class<?>> configClasses) {
+        Set<Class<?>> dependencyClasses = new HashSet<>();
+        configClasses.forEach(klass -> dependencyClasses.addAll(
+                Arrays.stream(klass.getMethods())
+                        .map(Method::getReturnType)
+                        .collect(Collectors.toList())
+        ));
+        return dependencyClasses;
     }
 
     private Server initServer(Class<? extends Server> server, int port, int poolSize) {

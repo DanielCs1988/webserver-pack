@@ -16,7 +16,7 @@ public final class Injector {
         this.dependencies = dependencies;
     }
 
-    public Injector(Map<Class, Object> dependencies, Weaver weaver) {
+    Injector(Map<Class, Object> dependencies, Weaver weaver) {
         this.dependencies = dependencies;
         this.weaver = weaver;
     }
