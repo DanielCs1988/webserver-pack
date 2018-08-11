@@ -21,6 +21,7 @@ public class BasicHttpServer implements Server {
     private final Gson converter;
     private final Map<String, Map<String, Handler>> staticRoutes = new HashMap<>();
     private final Map<String, Map<String, Handler>> variableRoutes = new HashMap<>();
+    private final List<HttpMiddleware> middlewares = new ArrayList<>();
 
     private BasicHttpServer(int port, Reflections classPathScanner, Injector injector, Gson converter) {
         this(port, classPathScanner, injector, converter, 20);
@@ -35,11 +36,13 @@ public class BasicHttpServer implements Server {
 
     private void initControllers(Reflections classPathScanner, Injector injector, Gson converter) {
         Set<Method> controllers = classPathScanner.getMethodsAnnotatedWith(WebRoute.class);
+        Set<Class<? extends HttpMiddleware>> middlewares = classPathScanner.getSubTypesOf(HttpMiddleware.class);
+        middlewares.stream().map(injector::injectDependencies).forEach(this.middlewares::add);
         Map<Class, Object> callers = new HashMap<>();
         HttpExchangeProcessor processor = new HttpExchangeProcessor(converter);
 
         for (Method controller : controllers) {
-            Class callerClass = controller.getDeclaringClass();
+            Class<?> callerClass = controller.getDeclaringClass();
             if (!callers.containsKey(callerClass)) {
                 callers.put(callerClass, injector.injectDependencies(callerClass));
             }
@@ -83,7 +86,9 @@ public class BasicHttpServer implements Server {
     public void start() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-            HttpHandler dispatcher = new RequestDispatcher(staticRoutes, variableRoutes, new HttpExchangeProcessor(converter));
+            HttpHandler dispatcher = new RequestDispatcher(
+                    staticRoutes, variableRoutes, new HttpExchangeProcessor(converter), middlewares
+            );
             server.setExecutor(Executors.newFixedThreadPool(poolSize));
             server.createContext("/", dispatcher);
             System.out.println("HTTP server listening on port " + port + "...");

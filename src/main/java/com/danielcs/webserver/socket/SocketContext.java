@@ -16,9 +16,9 @@ public interface SocketContext {
     Set<String> getCurrentRooms();
     void leaveAllRooms();
 
-    Object getProperty(String name);
+    <T> void setProperty(String name, T property);
+    <T> T getProperty(String name);
     Map<String, Object> getProperties();
-    void setProperty(String name, Object property);
     void clearProperties();
 
     void disconnect();

@@ -21,7 +21,8 @@ public final class Injector {
         this.weaver = weaver;
     }
 
-    public Object injectDependencies(Class processedClass)  {
+    @SuppressWarnings("unchecked")
+    public <T> T injectDependencies(Class<T> processedClass)  {
         Constructor constructor = processedClass.getConstructors()[0];
         Class[] paramClasses =  constructor.getParameterTypes();
         Object[] params = new Object[paramClasses.length];
@@ -31,9 +32,9 @@ public final class Injector {
         try {
             Object object = params.length > 0 ? constructor.newInstance(params) : constructor.newInstance();
             if (weaver == null || !isClassWoven(processedClass)) {
-                return object;
+                return (T)object;
             }
-            return weaver.createProxy(object);
+            return weaver.createProxy((T)object);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             System.out.println("Could not inject dependencies to class: " + processedClass.getName());
             return null;

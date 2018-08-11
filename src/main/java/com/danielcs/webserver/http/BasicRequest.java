@@ -11,6 +11,7 @@ import static com.danielcs.webserver.http.Utils.*;
 
 class BasicRequest implements Request {
 
+    private final Map<String, Object> properties = new HashMap<>();
     private final HttpExchange http;
     private final Gson converter;
     private final Map<String, String> queryParams;
@@ -102,5 +103,21 @@ class BasicRequest implements Request {
     @Override
     public void addHeader(String key, String value) {
         http.getResponseHeaders().add(key, value);
+    }
+
+    @Override
+    public <T> void setProperty(String key, T value) {
+        properties.put(key, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T getProperty(String key) {
+        return (T)properties.get(key);
+    }
+
+    @Override
+    public Map<String, Object> getProperties() {
+        return Collections.unmodifiableMap(properties);
     }
 }

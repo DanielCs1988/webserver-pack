@@ -1,6 +1,7 @@
 package com.danielcs.webserver.http;
 
 import com.danielcs.webserver.http.annotations.*;
+import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ class Handler {
     }
 
     @SuppressWarnings("unchecked")
-    void handleRequest(HttpExchange http, Object[] args) throws IOException {
+    void handleRequest(HttpExchange http, Request request, Object[] args) throws IOException {
         try {
             Object[] params;
             int numberOfBasicParams = model == null ? 1 : 2;
@@ -42,18 +43,18 @@ class Handler {
             } else {
                 params = new Object[numberOfBasicParams];
             }
-            params[0] = processor.getRequest(http);
+            params[0] = request;
             if (model != null) {
-                params[1] = processor.getRequest(http).getObjectFromBody(model);
+                params[1] = request.getObjectFromBody(model);
             }
             sendResponse(http, method.invoke(caller, params));
-        } catch (IllegalAccessException | InvocationTargetException e) {
+        } catch (IllegalAccessException | InvocationTargetException | JsonSyntaxException e) {
             System.out.println("Error occurred while processing HTTP request:\n" + e);
         }
         sendResponse(http, new Response<>(ResponseType.BAD_REQUEST, "Could not process request."));
     }
 
-    void sendResponse(HttpExchange http, Object response) throws IOException {
+    private void sendResponse(HttpExchange http, Object response) throws IOException {
         if (response instanceof Response) {
             Response respObject = (Response) response;
             switch (respObject.getType()) {

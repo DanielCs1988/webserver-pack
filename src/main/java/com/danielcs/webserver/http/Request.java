@@ -19,4 +19,7 @@ public interface Request {
     String getQueryParam(String key);
     Map<String, String> getQueryParams();
     void addHeader(String key, String value);
+    <T> void setProperty(String key, T value);
+    <T> T getProperty(String key);
+    Map<String, Object> getProperties();
 }

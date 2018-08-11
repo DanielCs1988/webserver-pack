@@ -13,14 +13,21 @@ class RequestDispatcher implements HttpHandler {
     private final Map<String, Map<String, Handler>> staticRoutes;
     private final Map<String, Map<String, Handler>> variableRoutes;
     private final HttpExchangeProcessor processor;
+    private final List<HttpMiddleware> middlewares;
 
-    RequestDispatcher(Map<String, Map<String, Handler>> staticRoutes, Map<String, Map<String, Handler>> variableRoutes, HttpExchangeProcessor processor) {
+    RequestDispatcher(
+            Map<String, Map<String, Handler>> staticRoutes,
+            Map<String, Map<String, Handler>> variableRoutes,
+            HttpExchangeProcessor processor,
+            List<HttpMiddleware> middlewares
+    ) {
         this.staticRoutes = staticRoutes;
         this.variableRoutes = variableRoutes;
         this.processor = processor;
+        this.middlewares = middlewares;
     }
 
-    private void resolveVariableRoute(String path, String method, HttpExchange http) throws IOException {
+    private void resolveVariableRoute(String path, String method, HttpExchange http, Request request) throws IOException {
         for (String pattern : variableRoutes.keySet()) {
             if (path.matches(pattern)) {
                 Matcher matcher = Pattern.compile(pattern).matcher(path);
@@ -30,7 +37,7 @@ class RequestDispatcher implements HttpHandler {
                     String pathVar = matcher.group(i + 1);
                     args[i] = convertPathVariableIfNeeded(pathVar);
                 }
-                variableRoutes.get(pattern).get(method).handleRequest(http, args);
+                variableRoutes.get(pattern).get(method).handleRequest(http, request, args);
                 return;
             }
         }
@@ -47,15 +54,26 @@ class RequestDispatcher implements HttpHandler {
         return pathVar;
     }
 
+    private boolean applyMiddlewares(Request request, Responder responder) throws IOException {
+        for (HttpMiddleware middleware : middlewares) {
+            if (!middleware.process(request, responder)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public void handle(HttpExchange http) throws IOException {
         String path = http.getRequestURI().getPath();
         String method = http.getRequestMethod();
-        // TODO: Middlewares here
+        Request request = processor.getRequest(http);
+        Responder responder = new BasicResponder(processor, http);
+        if (!applyMiddlewares(request, responder)) { return; }
         if (staticRoutes.containsKey(path)) {
-            staticRoutes.get(path).get(method).handleRequest(http, null);
+            staticRoutes.get(path).get(method).handleRequest(http, request, null);
         } else {
-            resolveVariableRoute(path, method, http);
+            resolveVariableRoute(path, method, http, request);
         }
     }
 }

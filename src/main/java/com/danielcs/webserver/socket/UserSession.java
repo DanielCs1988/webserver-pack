@@ -57,12 +57,13 @@ public final class UserSession {
         properties.clear();
     }
 
-    void setProperty(String name, Object property) {
+    <T> void setProperty(String name, T property) {
         properties.put(name, property);
     }
 
-    Object getProperty(String name) {
-        return properties.get(name);
+    @SuppressWarnings("unchecked")
+    <T> T getProperty(String name) {
+        return (T)properties.get(name);
     }
 
     @Override

@@ -71,7 +71,7 @@ class BasicContext implements SocketContext {
     }
 
     @Override
-    public Object getProperty(String name) {
+    public <T> T getProperty(String name) {
         return user.getProperty(name);
     }
 
@@ -81,7 +81,7 @@ class BasicContext implements SocketContext {
     }
 
     @Override
-    public void setProperty(String name, Object property) {
+    public <T> void setProperty(String name, T property) {
         user.setProperty(name, property);
     }
 
