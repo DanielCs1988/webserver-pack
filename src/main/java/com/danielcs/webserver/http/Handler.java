@@ -6,41 +6,45 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 
 class Handler {
 
     private final Object caller;
     private final Method method;
     private final HttpExchangeProcessor processor;
-    private final ParamType paramType;
-    private final Class JsonType;
+    private final Class model;
 
     Handler(Object caller, Method method, HttpExchangeProcessor processor) {
         this.caller = caller;
         this.method = method;
         this.processor = processor;
-        this.paramType = method.getAnnotation(WebRoute.class).paramType();
-        this.JsonType = paramType == ParamType.JSON ?
-                method.getAnnotation(WebRoute.class).model() : null;
+        this.model = resolveModel();
+    }
+
+    private Class resolveModel() {
+        for (Parameter param : method.getParameters()) {
+            if (param.isAnnotationPresent(Body.class)) {
+                return param.getType();
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
     void handleRequest(HttpExchange http, Object[] args) throws IOException {
         try {
             Object[] params;
+            int numberOfBasicParams = model == null ? 1 : 2;
             if (args != null) {
-                params = new Object[args.length + 1];
+                params = new Object[args.length + numberOfBasicParams];
                 System.arraycopy(args, 0, params, 1, args.length);
             } else {
-                params = new Object[1];
+                params = new Object[numberOfBasicParams];
             }
-            switch (paramType) {
-                case WRAP:
-                    params[0] = processor.getRequest(http);
-                    break;
-                case JSON:
-                    params[0] = processor.getRequest(http).getObjectFromBody(JsonType);
-                    break;
+            params[0] = processor.getRequest(http);
+            if (model != null) {
+                params[1] = processor.getRequest(http).getObjectFromBody(model);
             }
             sendResponse(http, method.invoke(caller, params));
         } catch (IllegalAccessException | InvocationTargetException e) {
