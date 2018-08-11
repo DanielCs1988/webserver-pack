@@ -15,12 +15,14 @@ class BasicRequest implements Request {
     private final HttpExchange http;
     private final Gson converter;
     private final Map<String, String> queryParams;
+    private final Responder responder;
     private Map<String, String> bodyParams;
     private Map<String, String> cookies;
 
-    BasicRequest(HttpExchange http, Gson converter) {
+    BasicRequest(HttpExchange http, Responder responder, Gson converter) {
         this.http = http;
         this.converter = converter;
+        this.responder = responder;
         String url = http.getRequestURI().getRawQuery();
         queryParams = parseUrl(url);
     }
@@ -119,5 +121,10 @@ class BasicRequest implements Request {
     @Override
     public Map<String, Object> getProperties() {
         return Collections.unmodifiableMap(properties);
+    }
+
+    @Override
+    public Responder getResponder() {
+        return responder;
     }
 }

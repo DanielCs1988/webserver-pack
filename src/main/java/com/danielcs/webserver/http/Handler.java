@@ -39,7 +39,7 @@ class Handler {
             int numberOfBasicParams = model == null ? 1 : 2;
             if (args != null) {
                 params = new Object[args.length + numberOfBasicParams];
-                System.arraycopy(args, 0, params, 1, args.length);
+                System.arraycopy(args, 0, params, numberOfBasicParams, args.length);
             } else {
                 params = new Object[numberOfBasicParams];
             }
@@ -69,6 +69,9 @@ class Handler {
                     break;
                 case UNAUTHORIZED:
                     processor.sendError(http, 401, respObject.getContent().toString());
+                    break;
+                case NOT_FOUND:
+                    processor.sendError(http, 404, respObject.getContent().toString());
                     break;
             }
         } else {

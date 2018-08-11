@@ -22,4 +22,5 @@ public interface Request {
     <T> void setProperty(String key, T value);
     <T> T getProperty(String key);
     Map<String, Object> getProperties();
+    Responder getResponder();
 }

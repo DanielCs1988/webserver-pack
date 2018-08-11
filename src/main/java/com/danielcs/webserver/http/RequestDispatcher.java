@@ -68,8 +68,7 @@ class RequestDispatcher implements HttpHandler {
         String path = http.getRequestURI().getPath();
         String method = http.getRequestMethod();
         Request request = processor.getRequest(http);
-        Responder responder = new BasicResponder(processor, http);
-        if (!applyMiddlewares(request, responder)) { return; }
+        if (!applyMiddlewares(request, request.getResponder())) { return; }
         if (staticRoutes.containsKey(path)) {
             staticRoutes.get(path).get(method).handleRequest(http, request, null);
         } else {

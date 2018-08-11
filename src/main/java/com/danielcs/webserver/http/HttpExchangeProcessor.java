@@ -16,7 +16,8 @@ class HttpExchangeProcessor {
     }
 
     Request getRequest(HttpExchange http) {
-        return new BasicRequest(http, converter);
+        Responder responder = new BasicResponder(this, http);
+        return new BasicRequest(http, responder, converter);
     }
 
     private void sendRawResponse(HttpExchange http, String content) throws IOException {
