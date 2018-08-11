@@ -19,7 +19,8 @@ public class BasicHttpServer implements Server {
     private final int port;
     private final int poolSize;
     private final Gson converter;
-    private final Map<String, Map<String, Handler>> pathMappings = new HashMap<>();
+    private final Map<String, Map<String, Handler>> staticRoutes = new HashMap<>();
+    private final Map<String, Map<String, Handler>> variableRoutes = new HashMap<>();
 
     private BasicHttpServer(int port, Reflections classPathScanner, Injector injector, Gson converter) {
         this(port, classPathScanner, injector, converter, 20);
@@ -45,23 +46,47 @@ public class BasicHttpServer implements Server {
             Object caller = callers.get(callerClass);
             Handler handler = new Handler(caller, controller, processor);
             WebRoute route = controller.getAnnotation(WebRoute.class);
-            String path = route.path();
-            if (pathMappings.containsKey(path)) {
-                pathMappings.get(path).put(route.method().toString(), handler);
-            } else {
-                Map<String, Handler> methodMappings = new HashMap<>();
-                methodMappings.put(route.method().toString(), handler);
-                pathMappings.put(path, methodMappings);
-            }
+            registerHandler(handler, route);
+        }
+    }
+
+    private void registerHandler(Handler handler, WebRoute route) {
+        String path = route.path();
+        if (path.matches(".*/:[^/]+.*")) {
+            addVariableRoute(handler, route, path);
+        } else {
+            addStaticRoute(handler, route, path);
+        }
+    }
+
+    private void addStaticRoute(Handler handler, WebRoute route, String path) {
+        if (staticRoutes.containsKey(path)) {
+            staticRoutes.get(path).put(route.method().toString(), handler);
+        } else {
+            Map<String, Handler> methodMappings = new HashMap<>();
+            methodMappings.put(route.method().toString(), handler);
+            staticRoutes.put(path, methodMappings);
+        }
+    }
+
+    private void addVariableRoute(Handler handler, WebRoute route, String path) {
+        String pattern = path.replaceAll(":[^/]+", "([^/]+)");
+        if (variableRoutes.containsKey(pattern)) {
+            variableRoutes.get(pattern).put(route.method().toString(), handler);
+        } else {
+            Map<String, Handler> methodMappings = new HashMap<>();
+            methodMappings.put(route.method().toString(), handler);
+            variableRoutes.put(pattern, methodMappings);
         }
     }
 
     public void start() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-            HttpHandler dispatcher = new RequestDispatcher(pathMappings, new HttpExchangeProcessor(converter));
+            HttpHandler dispatcher = new RequestDispatcher(staticRoutes, variableRoutes, new HttpExchangeProcessor(converter));
             server.setExecutor(Executors.newFixedThreadPool(poolSize));
             server.createContext("/", dispatcher);
+            System.out.println("HTTP server listening on port " + port + "...");
             server.start();
         } catch (IOException e) {
             System.out.println("Failed to open connection!");

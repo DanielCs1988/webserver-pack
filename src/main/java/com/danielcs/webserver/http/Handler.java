@@ -25,11 +25,16 @@ class Handler {
     }
 
     @SuppressWarnings("unchecked")
-    void handleRequest(HttpExchange http, List<Object> args) {
+    void handleRequest(HttpExchange http, Object[] args) {
         try {
             int numberOfArgs = (paramType == ParamType.NONE) ? 1 : 2;
-            Object[] params = new Object[args.size() + numberOfArgs];
-
+            Object[] params;
+            if (args != null) {
+                params = new Object[args.length + numberOfArgs];
+                System.arraycopy(args, 0, params, numberOfArgs, args.length);
+            } else {
+                params = new Object[numberOfArgs];
+            }
             switch (paramType) {
                 case WRAP:
                     params[0] = processor.getRequest(http);
@@ -41,10 +46,6 @@ class Handler {
                     break;
                 case NONE:
                     params[0] = http;
-            }
-
-            for (int i = 0; i < args.size(); i++) {
-                params[i + numberOfArgs] = args.get(i);
             }
             method.invoke(caller, params);
         } catch (IllegalAccessException | InvocationTargetException e) {
