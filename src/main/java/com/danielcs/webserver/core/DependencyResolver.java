@@ -21,25 +21,38 @@ final class DependencyResolver {
         this.converter = converter;
     }
 
-    Map<Class, Object> initDependencies(Set<Class<?>> configClasses, Set<Class<?>> assemblers) {
-        for (Class<?> configClass : configClasses) {
-            try {
-                Object configObject = configClass.newInstance();
-                for (Method method : configClass.getMethods()) {
-                    if (method.isAnnotationPresent(Dependency.class)) {
-                        dependencies.put(method.getReturnType(), method.invoke(configObject));
-                    }
-                }
-                initRequestHandlers(assemblers);
-                Map<Class, Object> proxies = new Weaver(dependencies)
-                        .createProxies(fabric, aspects);
-                resolveDependencies(proxies);
-            } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                System.out.println("Could not initialize dependencies.");
-                e.printStackTrace();
-            }
+    Map<Class, Object> initDependencies(Set<Class<?>> dependencyClasses, Set<Method> methodDependencies, Set<Class<?>> assemblers) {
+        try {
+            initDepsFromMethods(methodDependencies);
+            initDepsFromClasses(dependencyClasses);
+            initRequestHandlers(assemblers);
+            Map<Class, Object> proxies = new Weaver(dependencies)
+                    .createProxies(fabric, aspects);
+            resolveDependencies(proxies);
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            System.out.println("Could not initialize dependencies.");
+            e.printStackTrace();
         }
         return dependencies;
+    }
+
+    private void initDepsFromClasses(Set<Class<?>> dependencyClasses) throws IllegalAccessException, InstantiationException {
+        for (Class<?> depClass : dependencyClasses) {
+            if (!dependencies.containsKey(depClass)) {
+                dependencies.put(depClass, depClass.newInstance());
+            }
+        }
+    }
+
+    private void initDepsFromMethods(Set<Method> methodDependencies) throws InstantiationException, IllegalAccessException, InvocationTargetException {
+        Map<Class, Object> parentObjects = new HashMap<>();
+        for (Method depMethod : methodDependencies) {
+            Class declarer = depMethod.getDeclaringClass();
+            if (!parentObjects.containsKey(declarer)) {
+                parentObjects.put(declarer, declarer.newInstance());  // Throws if there is no def. constructor
+            }
+            dependencies.put(depMethod.getReturnType(), depMethod.invoke(parentObjects.get(declarer)));
+        }
     }
 
     private void initRequestHandlers(Set<Class<?>> assemblers) {

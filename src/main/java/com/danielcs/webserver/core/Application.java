@@ -14,7 +14,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class Application {
+public final class Application {
 
     private final Gson converter = new Gson();
     private final Server server;
@@ -38,8 +38,8 @@ public class Application {
                 .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner(), new MethodAnnotationsScanner())
         );
 
-        Set<Class<?>> configClasses = classPathScanner.getTypesAnnotatedWith(Configuration.class);
-        Set<Class<?>> dependencyClasses = getDependenciesFromConfig(configClasses);
+        Set<Method> methodDependencies = classPathScanner.getMethodsAnnotatedWith(Dependency.class);
+        Set<Class<?>> dependencyClasses = collectDependencyClasses(methodDependencies);
         Set<Class<?>> assemblers = classPathScanner.getTypesAnnotatedWith(HttpRequestAssembler.class);
         Set<Method> aspects = classPathScanner.getMethodsAnnotatedWith(Aspect.class);
         Set<Class> fabric = classPathScanner.getMethodsAnnotatedWith(Weave.class).stream()
@@ -48,17 +48,15 @@ public class Application {
                 .collect(Collectors.toSet());
 
         DependencyResolver resolver = new DependencyResolver(fabric, aspects, converter);
-        dependencies = resolver.initDependencies(configClasses, assemblers);
+        dependencies = resolver.initDependencies(dependencyClasses, methodDependencies, assemblers);
         injector = new Injector(dependencies, new Weaver(dependencies));
     }
 
-    private Set<Class<?>> getDependenciesFromConfig(Set<Class<?>> configClasses) {
-        Set<Class<?>> dependencyClasses = new HashSet<>();
-        configClasses.forEach(klass -> dependencyClasses.addAll(
-                Arrays.stream(klass.getMethods())
-                        .map(Method::getReturnType)
-                        .collect(Collectors.toList())
-        ));
+    private Set<Class<?>> collectDependencyClasses(Set<Method> methodDependencies) {
+        Set<Class<?>> dependencyClasses = methodDependencies.stream()
+                .map(Method::getReturnType)
+                .collect(Collectors.toSet());
+        dependencyClasses.addAll(classPathScanner.getTypesAnnotatedWith(Dependency.class));
         return dependencyClasses;
     }
 
