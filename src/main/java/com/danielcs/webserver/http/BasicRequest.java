@@ -98,4 +98,9 @@ class BasicRequest implements Request {
     public Map<String, String> getQueryParams() {
         return Collections.unmodifiableMap(queryParams);
     }
+
+    @Override
+    public void addHeader(String key, String value) {
+        http.getResponseHeaders().add(key, value);
+    }
 }

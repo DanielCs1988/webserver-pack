@@ -1,13 +1,20 @@
 package com.danielcs.webserver.http;
 
-import java.io.IOException;
+public final class Response<T> {
 
-public interface Response {
+    private final ResponseType type;
+    private final T content;
 
-    void sendString(String content) throws IOException;
-    void sendObject(Object object) throws IOException;
-    void addHeader(String key, String value);
-    void redirect(String path) throws IOException;
-    void sendError(int errorCode, String reason) throws IOException;
+    public Response(ResponseType type, T content) {
+        this.type = type;
+        this.content = content;
+    }
 
+    public ResponseType getType() {
+        return type;
+    }
+
+    public T getContent() {
+        return content;
+    }
 }

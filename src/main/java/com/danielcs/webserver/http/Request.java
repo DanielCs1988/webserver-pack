@@ -18,4 +18,5 @@ public interface Request {
     String getFragment();
     String getQueryParam(String key);
     Map<String, String> getQueryParams();
+    void addHeader(String key, String value);
 }

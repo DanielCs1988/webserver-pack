@@ -20,7 +20,7 @@ class RequestDispatcher implements HttpHandler {
         this.processor = processor;
     }
 
-    private void resolveVariableRoute(String path, String method, HttpExchange http) {
+    private void resolveVariableRoute(String path, String method, HttpExchange http) throws IOException {
         for (String pattern : variableRoutes.keySet()) {
             if (path.matches(pattern)) {
                 Matcher matcher = Pattern.compile(pattern).matcher(path);
@@ -31,8 +31,10 @@ class RequestDispatcher implements HttpHandler {
                     args[i] = convertPathVariableIfNeeded(pathVar);
                 }
                 variableRoutes.get(pattern).get(method).handleRequest(http, args);
+                return;
             }
         }
+        processor.sendError(http, 404, "Nope, no page by that name!");
     }
 
     private Object convertPathVariableIfNeeded(String pathVar) {

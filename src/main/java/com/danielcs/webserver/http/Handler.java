@@ -3,9 +3,9 @@ package com.danielcs.webserver.http;
 import com.danielcs.webserver.http.annotations.*;
 import com.sun.net.httpserver.HttpExchange;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
 
 class Handler {
 
@@ -25,31 +25,49 @@ class Handler {
     }
 
     @SuppressWarnings("unchecked")
-    void handleRequest(HttpExchange http, Object[] args) {
+    void handleRequest(HttpExchange http, Object[] args) throws IOException {
         try {
-            int numberOfArgs = (paramType == ParamType.NONE) ? 1 : 2;
             Object[] params;
             if (args != null) {
-                params = new Object[args.length + numberOfArgs];
-                System.arraycopy(args, 0, params, numberOfArgs, args.length);
+                params = new Object[args.length + 1];
+                System.arraycopy(args, 0, params, 1, args.length);
             } else {
-                params = new Object[numberOfArgs];
+                params = new Object[1];
             }
             switch (paramType) {
                 case WRAP:
                     params[0] = processor.getRequest(http);
-                    params[1] = processor.getResponse(http);
                     break;
                 case JSON:
                     params[0] = processor.getRequest(http).getObjectFromBody(JsonType);
-                    params[1] = processor.getResponse(http);
                     break;
-                case NONE:
-                    params[0] = http;
             }
-            method.invoke(caller, params);
+            sendResponse(http, method.invoke(caller, params));
         } catch (IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
+            System.out.println("Error occurred while processing HTTP request:\n" + e);
+        }
+        sendResponse(http, new Response<>(ResponseType.BAD_REQUEST, "Could not process request."));
+    }
+
+    void sendResponse(HttpExchange http, Object response) throws IOException {
+        if (response instanceof Response) {
+            Response respObject = (Response) response;
+            switch (respObject.getType()) {
+                case OK:
+                    processor.sendResponse(http, respObject.getContent());
+                    break;
+                case REDIRECT:
+                    processor.redirect(http, respObject.getContent().toString());
+                    break;
+                case BAD_REQUEST:
+                    processor.sendError(http, 400, respObject.getContent().toString());  // May allow sending objects later
+                    break;
+                case UNAUTHORIZED:
+                    processor.sendError(http, 401, respObject.getContent().toString());
+                    break;
+            }
+        } else {
+            processor.sendResponse(http, response);
         }
     }
 }
