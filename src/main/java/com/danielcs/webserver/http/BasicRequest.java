@@ -83,6 +83,11 @@ class BasicRequest implements Request {
     }
 
     @Override
+    public String getMethod() {
+        return http.getRequestMethod();
+    }
+
+    @Override
     public String getPath() {
         return http.getRequestURI().getPath();
     }
@@ -103,7 +108,7 @@ class BasicRequest implements Request {
     }
 
     @Override
-    public void addHeader(String key, String value) {
+    public void setHeader(String key, String value) {
         http.getResponseHeaders().add(key, value);
     }
 
